@@ -1,0 +1,6 @@
+build/*
+lib/*
+release/*
+*/__pycache__/*
+build_*
+version.txt
