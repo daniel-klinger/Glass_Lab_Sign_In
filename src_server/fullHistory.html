@@ -19,7 +19,7 @@ try:
     #So this should read every logged line as JSON into a dict
     for line in file.readlines():
       line = line.strip()
-      if not line: break
+      if not line: continue
       objs.append(json.loads(line))
 except FileNotFoundError:
   print("No log file found")
