@@ -25,12 +25,12 @@ OutputBaseFilename=Check_In_v{#_VERSION}
 SolidCompression=yes
 Uninstallable=no
 OutputDir="release"
-SetupIconFile="src\img\icon.ico"
+SetupIconFile="src_client\img\icon.ico"
 
 [Files]
 Source: "build\*"; DestDir: "{app}\code"; Flags: recursesubdirs
 Source: "lib\*"; DestDir: "{app}\lib"; Flags: recursesubdirs
-Source: "src\img\*"; DestDir: "{app}\code\img"
+Source: "src_client\img\*"; DestDir: "{app}\code\img"
 ; We will ship the version with this file, so we can test on the first running if we need to update
 Source: "version.txt"; DestDir: "{app}"
 

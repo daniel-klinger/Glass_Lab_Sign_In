@@ -53,7 +53,7 @@ if not DEBUG: #If a release, we should increment the version number
 
 log("Starting build process")
 #Do all the actual building
-path.append("src") #Allows all modules in this folder to be imported
+path.append("src_client") #Allows all modules in this folder to be imported
 setup(**{
   "name": "Check_In_Program",
   "version": VERSION,
@@ -70,8 +70,8 @@ setup(**{
     }
   },
   ("console" if DEBUG else "windows"): [{
-    "script": "src/client.py",
-    "icon_resources": [(1, "src/img/icon.ico")],
+    "script": "src_client/client.py",
+    "icon_resources": [(1, "src_client/img/icon.ico")],
     "version": VERSION + ".0" #Because windows version has 4 parts
   }]
 })
