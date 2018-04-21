@@ -16,11 +16,12 @@ with lock: #Make sure that this isn't edited while we are iterating throught it
     t = self.users[user]
     if not "msg" in t: 
       t["msg"] = ""
-    print(t["user"] + ": {} hours, {} minutes, started at {} | Message: {}<br>".format(int(t["time"])//60**2, int(t["time"])//60%60, strftime("%I:%M %p, %x", localtime(time() - int(t["time"]))), t["msg"]))
+    print(self.getName(t["user"]) + ": {} hours, {} minutes, started at {} | Message: {}<br>".format(int(t["time"])//60**2, int(t["time"])//60%60, strftime("%I:%M %p, %x", localtime(time() - int(t["time"]))), t["msg"]))
   print("<h2>Recent Users List:</h2><br>")
   for i in range(len(self.recentHistory)):
-    print("{}: {}<br>".format(i+1, self.recentHistory[i]))
+    print("{}: {}<br>".format(i+1, self.getHistoryString(self.recentHistory[i])))
     ?>
     <small><a href="fullHistory.html">Full Laser History</a></small>
+    <small><a href="userAssoc.html">Change Someone's Name</a></small>
   </body>
 </html>

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>S&T Laser Sign-In: Set Association</title>
+    <style>
+    </style>
+  </head>
+  <body>
+  <h1>Set a new association</h1>
+    <form action="/userAssocSubmit.html" method="get">
+    <?py
+debug(self.recentHistory)
+for user in set(self.users[entry]["user"] for entry in self.users):
+  debug(user)
+  print('<input type="radio" name="inputName" value="{0}">{0}{1}<br>'.format(user, "  <small>(Name already set to '"+self.getName(user)+"')" if self.getName(user) != user else ""))
+    ?>
+      <input type="radio" name="inputName" value="other" required><input type="input" name="otherName" placeholder="Other Name"><br>
+      Set Real Name To: <input type="input" name="outputName" placeholder="Mr. Exampleson" required><br>
+      <input type="submit">
+    </form>
+  </body>
+</html>

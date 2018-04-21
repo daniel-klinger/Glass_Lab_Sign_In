@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>S&T Laser Sign-In: Set Association</title>
+    <style>
+    </style>
+  </head>
+  <body>
+    <h1>Set New Association Result:</h1>
+<?py
+from urllib.parse import parse_qs
+
+ARBITRARY_NAME_LENGTH = 50
+
+query = parse_qs(url.query)
+query = {i: query[i][0] for i in query} #I only care about the first parameter
+
+while True: #So I want to break out in certain cases, so I'll do this
+  #Make sure we have both of these
+  if not all(i in query and query[i] for i in ["inputName", "outputName"]): 
+    print("Failure: input or output name not given")
+    break
+  name = query["inputName"] #Usually this
+  if query["inputName"] == "other":
+    if "otherName" not in query or not query["otherName"]:
+      print("Failure: other name not given when other selected")
+      break
+    name = query["otherName"] #Sometimes may be this
+  success, reason = self.addName(name[:ARBITRARY_NAME_LENGTH], query["outputName"][:ARBITRARY_NAME_LENGTH])
+  print("Success!" if success else reason)
+  break #Always break at end
+  
+
+?>
+  <h2><a href="/">Go Home</a></h2>
+  </body>
+</html>

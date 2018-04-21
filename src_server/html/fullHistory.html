@@ -26,7 +26,7 @@ except FileNotFoundError:
 else: #Now that file is good
   objs.reverse() #Sort newest to oldest
   for entry in objs: 
-    print("<tr><td>{}</td><td>{} hours, {} minutes</td><td>{}</td></tr>".format(entry["user"], int(entry["time"])//60**2, int(entry["time"])//60%60, strftime("%I:%M %p, %x", localtime(entry["end"]-int(entry["time"])))), end = "\n")
+    print("<tr><td>{}</td><td>{} hours, {} minutes</td><td>{}</td></tr>".format(self.getName(entry["user"]), int(entry["time"])//60**2, int(entry["time"])//60%60, strftime("%I:%M %p, %x", localtime(entry["end"]-int(entry["time"])))), end = "\n")
   ?>
   </table>
   </body>

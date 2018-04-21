@@ -8,12 +8,15 @@ from urllib.parse import urlsplit
 TIME_INTERVAL = 1 #in second
 MISSED_MESSAGES = 20 #How many TIME_INTERVALs a client can miss before we consider them gone
 PORT = 4434 #Random port we listen on
+HTML_FOLDER = "html"
 
 def getFile(fileName, locals = None):
   if type(locals) != dict: locals = {} #Set it to a new dict every time
-  #There should only be files in the base directory, and they should be html files
-  if any(char in fileName for char in ['/', '\\']) or os.path.splitext(fileName)[1] not in [".html", ".css"]:
-    raise FileNotFoundError()
+  #Only go in our nice directory
+  fileName = os.path.normpath(fileName.lstrip("/")) #normpath will reduce all separators, if more up-references than folders in, will have .. at start
+  if fileName.startswith(".."):
+    return FileNotFoundError("Can't go above html directory")
+  fileName = os.path.join(HTML_FOLDER, fileName)
     
   with open(fileName) as file:
     data = file.read()
@@ -25,7 +28,8 @@ def getFile(fileName, locals = None):
       kwargs = {"file": outputObj, "end": "\n"}
       kwargs.update(kwarg)
       print(*arg, **kwargs)
-    exec(match.group(1), {"print": newPrint, "debug": print}, locals)
+    locals.update({"print": newPrint, "debug": print})
+    exec(match.group(1), locals)
     return outputObj.getvalue()
   #This will just search for instances of <?py print("Python code is here") ?> in the html and execute it
   try:
@@ -44,8 +48,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
   
   recentHistory = []
   
+  nameAssociations = {}
+  
   HISTORY_LENGTH = 10
   LOG_FILE = "userlog.log"
+  NAME_FILE = "names.json"
   
   dictLock = threading.Lock()
   
@@ -68,10 +75,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
   def do_GET(self):
     print("Starting GET Method for path '"+self.path+"'")
     url = urlsplit(self.path)
-    path = "mainPage.html" if url.path == "/" else url.path.lstrip("/")
+    path = "/mainPage.html" if url.path == "/" else url.path
 
     try:
-      responseText = getFile(path, locals = {"lock": Handler.dictLock, "self": self}) #Try getting the requested file, passing in a few data objects
+      responseText = getFile(path, locals = {"lock": Handler.dictLock, "self": self, "url":url}) #Try getting the requested file, passing in a few data objects
       #Then we properly send the response
       self.send_response(200)
       self.end_headers()
@@ -89,11 +96,47 @@ class Handler(http.server.BaseHTTPRequestHandler):
       self.end_headers()
       self.wfile.write(bytes("500: Internal Server Error Error", "utf-8"))
       
+  def addName(self, inName, outName):
+    print("Added name?")
+    self.nameAssociations[inName] = outName
+    with open(self.NAME_FILE, "w") as file:
+      json.dump(self.nameAssociations, file)
+    return True, ""
+  
+  @classmethod
+  def getName(cls, inName):
+    try:
+      return cls.nameAssociations[inName]
+    except KeyError:
+      return inName
+    
+  @classmethod
+  def getHistoryString(cls, t):
+    return 'User "{}" on laser for {}h {}m, signed off at {}'.format(cls.getName(t["user"]), int(t["time"])//60**2, int(t["time"])//60%60, strftime("%I:%M %p, %x", localtime(t["end"] if "end" in t else time())))
+    
+  @classmethod
+  #Load files and other things at start
+  def onStart(cls):
+    try:
+      with open(cls.NAME_FILE) as file:
+        cls.nameAssociations = json.load(file)
+    except FileNotFoundError:
+      pass
+    try:
+      with open(cls.LOG_FILE) as file:
+        for line in file.readlines():
+          if not line.strip():
+            continue
+          cls.recentHistory.append(json.loads(line))
+        cls.recentHistory.reverse()
+        cls.recentHistory = cls.recentHistory[:10]
+    except FileNotFoundError:
+      pass
   
   @classmethod
   def onUpdate(cls):
     with Handler.dictLock:
-      print(time(), "Checking all users:", cls.users)
+      print(int(time()), "Checking all users:", cls.users)
       for user in {i:cls.users[i] for i in cls.users}:
         num = cls.users[user]["countdown"]
         if num == 0: #If missed too many messages, remove them from consideration, log data
@@ -106,7 +149,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
           #Add in a descriptor of recent user to history table
           if len(cls.recentHistory) >= cls.HISTORY_LENGTH:  
             cls.recentHistory.pop()
-          cls.recentHistory.insert(0, 'User "{}" on laser for {}h {}m, signed off at {}'.format(t["user"], int(t["time"])//60**2, int(t["time"])//60%60, strftime("%I:%M %p, %x")))
+          cls.recentHistory.insert(0, t)
           del cls.users[user]
           if user in cls.ignoredUsers:
             cls.ignoredUsers.remove(user)
@@ -126,6 +169,9 @@ def continueUpdates():
   
 #Start the actual server
 server = ThreadedServer(("", PORT), Handler)
+
+#Setup the handler's memory
+Handler.onStart()
 
 updateThread = threading.Thread(target = continueUpdates)
 updateThread.start()
