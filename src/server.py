@@ -1,12 +1,14 @@
 #Server for receiving messages from a client
-import http.server, threading
+import json, http.server, threading
 from socketserver import ThreadingMixIn
-from time import sleep
+from time import localtime, sleep, strftime, time
 
 
-TIME_INTERVAL = 1 #1 second
+TIME_INTERVAL = 1 #in second
 MISSED_MESSAGES = 20 #How many TIME_INTERVALs a client can miss before we consider them gone
 PORT = 4434 #Random port we listen on
+LOG_FILE = "userlog.log"
+HISTORY_LENGTH = 10
 
 class Handler(ThreadingMixIn, http.server.BaseHTTPRequestHandler):
   #Mapping of [Unique ID: dict of data about user]
@@ -15,9 +17,12 @@ class Handler(ThreadingMixIn, http.server.BaseHTTPRequestHandler):
   #These are users that left themselves signed in, so we don't show them any more.
   ignoredUsers = []
   
+  recentHistory = []
+  
   dictLock = threading.Lock()
   
   #On a post request, this comes from a user reporting that it they're system is still in use
+  #EXPECTED FORMAT (comma separated)
   def do_POST(self):
     print("Got update!")
     parts = self.rfile.read().decode("utf-8").split(",")
@@ -43,26 +48,42 @@ class Handler(ThreadingMixIn, http.server.BaseHTTPRequestHandler):
         for user in self.users:
           print("Writing user:",user)
           t = self.users[user]
-          self.wfile.write(bytes(t["user"] + ": {} hours, {} minutes<br>".format(int(t["time"])//60**2, int(t["time"])//60), "utf-8"))
+          self.wfile.write(bytes(t["user"] + ": {} hours, {} minutes, started at {}<br>".format(int(t["time"])//60**2, int(t["time"])//60%60, strftime("%I:%M %p, %x", localtime(time() - int(t["time"])))), "utf-8"))
+        self.wfile.write(bytes("<br>Recent Users List:<br>", "utf-8"))
+        for i in range(len(self.recentHistory)):
+          self.wfile.write(bytes("{}: {}<br>".format(i+1, self.recentHistory[i]), "utf-8"))
+        
       print("Done")
   
-  def onUpdate(self):
+  @classmethod
+  def onUpdate(cls):
     with Handler.dictLock:
-      print("Checking all users:", self.users)
-      for user in {i:self.users[i] for i in self.users}:
-        num = self.users[user]["countdown"]
-        if num == 0: #If missed too many messages, remove them from consideration
-          del self.users[user]
-          if user in self.ignoredUsers:
-            self.ignoredUsers.remove(user)
+      print("Checking all users:", cls.users)
+      for user in {i:cls.users[i] for i in cls.users}:
+        num = cls.users[user]["countdown"]
+        if num == 0: #If missed too many messages, remove them from consideration, log data
+          t = cls.users[user]
+          with open(LOG_FILE, "a") as file: #Write their statistics to file
+            tFile = {i:t[i] for i in t if i != "countdown"}
+            tFile.update({"end":int(time())})
+            file.write(json.dumps(tFile))
+            file.write("\r\n")
+          #Add in a descriptor of recent user to history table
+          if len(cls.recentHistory) > 10:  
+            cls.recentHistory.pop()
+          cls.recentHistory.insert(0, 'User "{}" on laser for {}h {}m, signed off at {}'.format(t["user"], int(t["time"])//60**2, int(t["time"])//60%60, strftime("%I:%M %p, %x")))
+          del cls.users[user]
+          if user in cls.ignoredUsers:
+            cls.ignoredUsers.remove(user)
         else: #If they can still miss a message
-          self.users[user]["countdown"] -= 1
+          cls.users[user]["countdown"] -= 1
 
 STOP_SIGNAL = True
 def continueUpdates():
   while STOP_SIGNAL: #Can signal this to stop
-    Handler.onUpdate(Handler)
-    sleep(TIME_INTERVAL)
+    startTime = time()
+    Handler.onUpdate()   #Update all active users
+    sleep(max(0, startTime - time() + TIME_INTERVAL)) #Then wait until the time interval has passed before updating again
     
   
 #Start the actual server

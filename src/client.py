@@ -5,6 +5,7 @@
 # 3: This should be robust. If the websocket fails I don't want to worry about reconnecting and managing that
 
 import tkinter as tk
+from collections import OrderedDict
 from http.client import HTTPConnection
 from os import getlogin
 from os.path import join
@@ -29,10 +30,11 @@ class MainWindow(tk.Tk):
     self.resizable(False, False)
     self.iconbitmap(join("img","icon.ico"))
     
-    self.labels = {}
+    self.labels = OrderedDict()
     self.labels["user"] = tk.Label(text = "Current User: " + self.user)
     self.labels["messages"] = tk.Label(text = "Messages sent: " + str(self.updatesSent))
-    self.labels["time"] = tk.Label(text = "Time Logged In: " + "{} hours, {} minutes".format(*divmod(int(time()-self.startTime), 60*60)))
+    t = time()-self.startTime
+    self.labels["time"] = tk.Label(text = "Time Logged In: " + "{} hours, {} minutes".format(t//60**2, t//60%60))
     
     #Add in all the labels
     for label in self.labels:
