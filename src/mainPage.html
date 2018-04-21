@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>S&T Laser Sign-In</title>
+    <style>
+      body {background_color: black;}
+    </style>
+  </head>
+  <body>
+    <h2>People on Laser:</h2><br>
+
+    <?py
+from time import strftime, localtime, time
+with lock: #Make sure that this isn't edited while we are iterating throught it
+  for user in self.users:
+    t = self.users[user]
+    print(t["user"] + ": {} hours, {} minutes, started at {}".format(int(t["time"])//60**2, int(t["time"])//60%60, strftime("%I:%M %p, %x", localtime(time() - int(t["time"])))))
+  print("<h2>Recent Users List:<h2>")
+  for i in range(len(self.recentHistory)):
+    print("{}: {}".format(i+1, self.recentHistory[i]))
+    ?>
+  </body>
+</html>

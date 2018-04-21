@@ -1,14 +1,39 @@
 #Server for receiving messages from a client
-import json, http.server, threading
+import io, json, http.server, os.path, re, threading
 from socketserver import ThreadingMixIn
 from time import localtime, sleep, strftime, time
+from urllib.parse import urlsplit
 
 
 TIME_INTERVAL = 1 #in second
 MISSED_MESSAGES = 20 #How many TIME_INTERVALs a client can miss before we consider them gone
 PORT = 4434 #Random port we listen on
-LOG_FILE = "userlog.log"
-HISTORY_LENGTH = 10
+
+def getFile(fileName, locals = None):
+  if type(locals) != dict: locals = {} #Set it to a new dict every time
+  #There should only be files in the base directory, and they should be html files
+  if any(char in fileName for char in ['/', '\\']) or os.path.splitext(fileName)[1] not in [".html", ".css"]:
+    raise FileNotFoundError()
+    
+  with open(fileName) as file:
+    data = file.read()
+  #Now, this is like being a really shitty PHP, but here we go
+  def terrible_PHP_replace(match):
+    outputObj = io.StringIO()
+    #Execute the code with print output being captured
+    def newPrint(*arg, **kwarg):
+      kwargs = {"file": outputObj, "end": "<br>"}
+      kwargs.update(kwarg)
+      print(*arg, **kwargs)
+    exec(match.group(1), {"print": newPrint}, locals)
+    return outputObj.getvalue()
+  #This will just search for instances of <?py print("Python code is here") ?> in the html and execute it
+  try:
+    return re.sub("<\?py\s+(.+?(?!\?>))\s+\?>", terrible_PHP_replace, data, flags = re.DOTALL)
+  except Exception as e:
+    print("ERROR!", e.args)
+    raise RuntimeError() #Whatever error in here: It will just be considered a runtime error
+
 
 class Handler(ThreadingMixIn, http.server.BaseHTTPRequestHandler):
   #Mapping of [Unique ID: dict of data about user]
@@ -18,6 +43,9 @@ class Handler(ThreadingMixIn, http.server.BaseHTTPRequestHandler):
   ignoredUsers = []
   
   recentHistory = []
+  
+  HISTORY_LENGTH = 10
+  LOG_FILE = "userlog.log"
   
   dictLock = threading.Lock()
   
@@ -38,22 +66,29 @@ class Handler(ThreadingMixIn, http.server.BaseHTTPRequestHandler):
       print("Users:", self.users)
   
   def do_GET(self):
-    if self.path == "/":
-      print("Starting GET Method")
+    print("Starting GET Method for path '"+self.path+"'")
+    url = urlsplit(self.path)
+    path = "mainPage.html" if url.path == "/" else url.path.lstrip("/")
+
+    try:
+      responseText = getFile(path, locals = {"lock": Handler.dictLock, "self": self}) #Try getting the requested file, passing in a few data objects
+      #Then we properly send the response
       self.send_response(200)
       self.end_headers()
-      self.wfile.write(bytes("<html>People on Laser:<br>", "utf-8"))
-      print("Starting writing")
-      with Handler.dictLock:
-        for user in self.users:
-          print("Writing user:",user)
-          t = self.users[user]
-          self.wfile.write(bytes(t["user"] + ": {} hours, {} minutes, started at {}<br>".format(int(t["time"])//60**2, int(t["time"])//60%60, strftime("%I:%M %p, %x", localtime(time() - int(t["time"])))), "utf-8"))
-        self.wfile.write(bytes("<br>Recent Users List:<br>", "utf-8"))
-        for i in range(len(self.recentHistory)):
-          self.wfile.write(bytes("{}: {}<br>".format(i+1, self.recentHistory[i]), "utf-8"))
-        
-      print("Done")
+      self.wfile.write(bytes(responseText, "utf-8"))
+    except FileNotFoundError:
+      self.send_response(404)
+      self.end_headers()
+      self.wfile.write(bytes("404: Page not found", "utf-8"))
+    except RuntimeError: #This is if eval errors
+      self.send_response(500)
+      self.end_headers()
+      self.wfile.write(bytes("500: Internal Server Error", "utf-8"))
+    """except: #Everything else. Maybe I'll differentiate them someday
+      self.send_response(500)
+      self.end_headers()
+      self.wfile.write(bytes("500: Internal Server Error Error", "utf-8"))"""
+      
   
   @classmethod
   def onUpdate(cls):
@@ -63,13 +98,13 @@ class Handler(ThreadingMixIn, http.server.BaseHTTPRequestHandler):
         num = cls.users[user]["countdown"]
         if num == 0: #If missed too many messages, remove them from consideration, log data
           t = cls.users[user]
-          with open(LOG_FILE, "a") as file: #Write their statistics to file
+          with open(self.LOG_FILE, "a") as file: #Write their statistics to file
             tFile = {i:t[i] for i in t if i != "countdown"}
             tFile.update({"end":int(time())})
             file.write(json.dumps(tFile))
             file.write("\r\n")
           #Add in a descriptor of recent user to history table
-          if len(cls.recentHistory) > 10:  
+          if len(cls.recentHistory) >= self.HISTORY_LENGTH:  
             cls.recentHistory.pop()
           cls.recentHistory.insert(0, 'User "{}" on laser for {}h {}m, signed off at {}'.format(t["user"], int(t["time"])//60**2, int(t["time"])//60%60, strftime("%I:%M %p, %x")))
           del cls.users[user]
@@ -95,6 +130,8 @@ updateThread.start()
 try:
   server.serve_forever()
 except KeyboardInterrupt:
+  pass
+finally:
   print("Waiting for updater thread to quit")
   STOP_SIGNAL = False
   updateThread.join() #Wait for this to finish
