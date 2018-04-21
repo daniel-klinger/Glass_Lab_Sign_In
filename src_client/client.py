@@ -13,6 +13,7 @@ from random import getrandbits
 from time import time
 from PIL import ImageTk, Image
 
+MESSAGE_INTERVAL = 1000 #In ms
 IP_ADDRESS = "64.251.147.89:4434" #Home IP address at random port
 IP_FILE    = "IP_ADDRESS.txt"
 try:
@@ -41,10 +42,13 @@ class MainWindow(tk.Tk):
     self.labels["messages"] = tk.Label(text = "Messages sent: " + str(self.updatesSent))
     t = time()-self.startTime
     self.labels["time"] = tk.Label(text = "Time Logged In: " + "{} hours, {} minutes".format(t//60**2, t//60%60))
+    self.labels["msg"]  = tk.Entry()
     
     #Add in all the labels
     for label in self.labels:
-      self.labels[label].config(anchor = "w")
+      try:
+        self.labels[label].config(anchor = "w")
+      except: pass
       self.labels[label].pack(fill = "both", expand = "yes")
     
     
@@ -57,7 +61,7 @@ class MainWindow(tk.Tk):
     try:
       conn = HTTPConnection(IP_ADDRESS, timeout = 0.5)
       #We'll send CSV of ID, and time logged as integer
-      conn.request("POST", "", body=",".join([self.id, str(int(time()-self.startTime)), self.user]))
+      conn.request("POST", "", body=",".join([self.id, str(int(time()-self.startTime)), self.user, self.labels["msg"].get().replace(","," ")]))
       conn.close()
       
       self.updatesSent += 1
@@ -69,7 +73,7 @@ class MainWindow(tk.Tk):
     currTime = int(time() - self.startTime)
     self.labels["time"].config(text = "Time Spent Logged In: " + "{} hours, {} minutes".format(currTime//60**2, currTime//60))
     
-    self.after(1000, self.sendUpdate)
+    self.after(MESSAGE_INTERVAL, self.sendUpdate)
     
   def setImage(self, fileName):
     image = Image.open(join("img",fileName))

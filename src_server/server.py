@@ -31,11 +31,11 @@ def getFile(fileName, locals = None):
   try:
     return re.sub("<\?py\s+(.+?(?!\?>))\s+\?>", terrible_PHP_replace, data, flags = re.DOTALL)
   except Exception as e:
-    print("ERROR!", e.args)
+    print("ERROR!", type(e), e.args)
     raise RuntimeError() #Whatever error in here: It will just be considered a runtime error
 
 
-class Handler(ThreadingMixIn, http.server.BaseHTTPRequestHandler):
+class Handler(http.server.BaseHTTPRequestHandler):
   #Mapping of [Unique ID: dict of data about user]
   users = {}
   
@@ -61,7 +61,7 @@ class Handler(ThreadingMixIn, http.server.BaseHTTPRequestHandler):
     
     #Add in entry (whether it already exists or not). Add in other parts as dict entries
     with Handler.dictLock:
-      self.users[parts[0]] = dict(zip(["countdown", "time", "user"], [MISSED_MESSAGES] + parts[1:]))
+      self.users[parts[0]] = dict(zip(["countdown", "time", "user", "msg"], [MISSED_MESSAGES] + parts[1:]))
     
       print("Users:", self.users)
   
@@ -84,27 +84,27 @@ class Handler(ThreadingMixIn, http.server.BaseHTTPRequestHandler):
       self.send_response(500)
       self.end_headers()
       self.wfile.write(bytes("500: Internal Server Error", "utf-8"))
-    """except: #Everything else. Maybe I'll differentiate them someday
+    except: #Everything else. Maybe I'll differentiate them someday
       self.send_response(500)
       self.end_headers()
-      self.wfile.write(bytes("500: Internal Server Error Error", "utf-8"))"""
+      self.wfile.write(bytes("500: Internal Server Error Error", "utf-8"))
       
   
   @classmethod
   def onUpdate(cls):
     with Handler.dictLock:
-      print("Checking all users:", cls.users)
+      print(time(), "Checking all users:", cls.users)
       for user in {i:cls.users[i] for i in cls.users}:
         num = cls.users[user]["countdown"]
         if num == 0: #If missed too many messages, remove them from consideration, log data
           t = cls.users[user]
-          with open(self.LOG_FILE, "a") as file: #Write their statistics to file
+          with open(cls.LOG_FILE, "a") as file: #Write their statistics to file
             tFile = {i:t[i] for i in t if i != "countdown"}
             tFile.update({"end":int(time())})
             file.write(json.dumps(tFile))
             file.write("\r\n")
           #Add in a descriptor of recent user to history table
-          if len(cls.recentHistory) >= self.HISTORY_LENGTH:  
+          if len(cls.recentHistory) >= cls.HISTORY_LENGTH:  
             cls.recentHistory.pop()
           cls.recentHistory.insert(0, 'User "{}" on laser for {}h {}m, signed off at {}'.format(t["user"], int(t["time"])//60**2, int(t["time"])//60%60, strftime("%I:%M %p, %x")))
           del cls.users[user]
@@ -112,7 +112,10 @@ class Handler(ThreadingMixIn, http.server.BaseHTTPRequestHandler):
             cls.ignoredUsers.remove(user)
         else: #If they can still miss a message
           cls.users[user]["countdown"] -= 1
-
+      
+class ThreadedServer(ThreadingMixIn, http.server.HTTPServer):
+  pass
+          
 STOP_SIGNAL = True
 def continueUpdates():
   while STOP_SIGNAL: #Can signal this to stop
@@ -122,7 +125,7 @@ def continueUpdates():
     
   
 #Start the actual server
-server = http.server.HTTPServer(("", 4434), Handler)
+server = ThreadedServer(("", PORT), Handler)
 
 updateThread = threading.Thread(target = continueUpdates)
 updateThread.start()
