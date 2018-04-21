@@ -14,10 +14,11 @@ from time import strftime, localtime, time
 with lock: #Make sure that this isn't edited while we are iterating throught it
   for user in self.users:
     t = self.users[user]
-    print(t["user"] + ": {} hours, {} minutes, started at {}".format(int(t["time"])//60**2, int(t["time"])//60%60, strftime("%I:%M %p, %x", localtime(time() - int(t["time"])))))
-  print("<h2>Recent Users List:<h2>")
+    print(t["user"] + ": {} hours, {} minutes, started at {}<br>".format(int(t["time"])//60**2, int(t["time"])//60%60, strftime("%I:%M %p, %x", localtime(time() - int(t["time"])))))
+  print("<h2>Recent Users List:</h2><br>")
   for i in range(len(self.recentHistory)):
-    print("{}: {}".format(i+1, self.recentHistory[i]))
+    print("{}: {}<br>".format(i+1, self.recentHistory[i]))
     ?>
+    <small><a href="fullHistory.html">Full Laser History</a></small>
   </body>
 </html>

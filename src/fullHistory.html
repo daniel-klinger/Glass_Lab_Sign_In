@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>S&T Laser Sign-In: Laser Users</title>
+    <style>
+    </style>
+  </head>
+  <body>
+  <h1>People Who Have Used The Laser</h1>
+  <table>
+  <tr><th>USER</th><th>TIME SPENT</th><th>STARTED AT</th></tr>
+  <?py
+import json
+from time import strftime, localtime, time
+
+objs = []
+try:
+  with open(self.LOG_FILE) as file: 
+    #So this should read every logged line as JSON into a dict
+    for line in file.readlines():
+      line = line.strip()
+      if not line: break
+      objs.append(json.loads(line))
+except FileNotFoundError:
+  print("No log file found")
+else: #Now that file is good
+  objs.reverse() #Sort newest to oldest
+  for entry in objs: 
+    print("<tr><td>{}</td><td>{} hours, {} minutes</td><td>{}</td></tr>".format(entry["user"], int(entry["time"])//60**2, int(entry["time"])//60%60, strftime("%I:%M %p, %x", localtime(entry["end"]-int(entry["time"])))), end = "\n")
+  ?>
+  </table>
+  </body>
+</html>

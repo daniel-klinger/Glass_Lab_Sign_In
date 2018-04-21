@@ -22,10 +22,10 @@ def getFile(fileName, locals = None):
     outputObj = io.StringIO()
     #Execute the code with print output being captured
     def newPrint(*arg, **kwarg):
-      kwargs = {"file": outputObj, "end": "<br>"}
+      kwargs = {"file": outputObj, "end": "\n"}
       kwargs.update(kwarg)
       print(*arg, **kwargs)
-    exec(match.group(1), {"print": newPrint}, locals)
+    exec(match.group(1), {"print": newPrint, "debug": print}, locals)
     return outputObj.getvalue()
   #This will just search for instances of <?py print("Python code is here") ?> in the html and execute it
   try:
