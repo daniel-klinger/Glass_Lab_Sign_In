@@ -14,7 +14,13 @@ from time import time
 from PIL import ImageTk, Image
 
 IP_ADDRESS = "64.251.147.89:4434" #Home IP address at random port
-#IP_ADDRESS = "192.168.0.10:4434" #Home IP address at random port
+IP_FILE    = "IP_ADDRESS.txt"
+try:
+  with open(IP_FILE) as file:
+    IP_ADDRESS = file.read().strip()
+except FileNotFoundError:
+  with open(IP_FILE, "w") as file:
+    file.write(IP_ADDRESS) #Just write the default address to file
 
 class MainWindow(tk.Tk):
   id = hex(getrandbits(64))[2:] #Generate a new random ID when the program is started
