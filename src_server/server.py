@@ -145,7 +145,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             tFile = {i:t[i] for i in t if i != "countdown"}
             tFile.update({"end":int(time())})
             file.write(json.dumps(tFile))
-            file.write("\r\n")
+            file.write("\n")
           #Add in a descriptor of recent user to history table
           if len(cls.recentHistory) >= cls.HISTORY_LENGTH:  
             cls.recentHistory.pop()
