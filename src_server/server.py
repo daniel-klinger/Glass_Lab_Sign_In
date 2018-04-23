@@ -149,7 +149,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
           #Add in a descriptor of recent user to history table
           if len(cls.recentHistory) >= cls.HISTORY_LENGTH:  
             cls.recentHistory.pop()
-          cls.recentHistory.insert(0, t)
+          cls.recentHistory.insert(0, tFile)
           del cls.users[user]
           if user in cls.ignoredUsers:
             cls.ignoredUsers.remove(user)
